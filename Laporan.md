@@ -7,8 +7,7 @@
 
 ### 1. Berapa lama waktu yang dibutuhkan sebelum batch pertama selesai diproses? Mengapa membutuhkan waktu tersebut?
 
-![image](https://hackmd.io/_uploads/BJylDMb5We.png)
-![alt text](image.png)
+![alt text](a1.png)
 Batch pertama baru bisa diproses setelah **20 pesan terkumpul** di buffer
 (sesuai `BATCH_SIZE = 20`). Karena publisher mengirim 5 pesan/detik
 (satu per stasiun secara bergantian), buffer penuh setelah ±4 detik. Proses MapReduce seharusnya sangat cepat. Ini adalah ciri khas **batch processing** yaitu terdapat jeda tetap sebelum hasil tersedia, tidak seperti stream processing yang langsung reaktif.
@@ -23,14 +22,14 @@ Data masuk ke buffer dalam urutan kedatangan MQTT yang bersifat interleaved. Con
 
 ### 3. Jika `BATCH_SIZE` ditingkatkan menjadi 100, apa dampaknya terhadap akurasi statistik dan latensi hasil?
 
-![image](https://hackmd.io/_uploads/Hk2BDM-qWl.png)
+![alt text](a3.png)
 Peningkatan `BATCH_SIZE` menjadi 100 menciptakan trade-off yang signifikan antara kualitas data dan kecepatan sistem. Dari sisi akurasi statistik, penggunaan sampel yang lebih besar (100 data) menghasilkan nilai rata-rata dan distribusi yang lebih representatif serta stabil terhadap outlier. Namun, hal ini berdampak buruk pada latensi hasil; dengan laju 5 pesan/detik, sistem mengalami penundaan hingga 20 detik hanya untuk mengisi satu batch. Selain menyebabkan data menjadi tidak real-time (data staleness), penggunaan memori juga meningkat proporsional karena buffer harus menampung objek 5 kali lebih banyak. Oleh karena itu, untuk sistem monitoring cuaca yang membutuhkan respon cepat, penggunaan batch size kecil lebih disarankan demi menjaga responsivitas dibandingkan mengejar stabilitas statistik yang tinggi.
 
 ---
 
 ### 4. **Modifikasi:** Ubah key pada fase Map menjadi `arah_angin` (bukan `station_id`). Apa insight baru yang bisa didapat dari perubahan ini?
 
-![image](https://hackmd.io/_uploads/H1TEuGb5Zx.png)
+![alt text](a4.png)
 Dengan key `arah_angin` (N, NE, SE, S, dll.), fase Reduce menghasilkan statistik
 per **arah mata angin**, bukan per stasiun. Insight yang muncul:
 
@@ -100,7 +99,7 @@ Fitur peringatan dini diimplementasikan dengan memeriksa tiga data AQI terakhir 
 ## Tugas C — Parallel Processing
 
 ### 1. Gambarkan **diagram urutan** (sequence diagram) yang menunjukkan bagaimana satu event diproses oleh 4 worker secara paralel, termasuk kapan `_lock` di-acquire dan di-release.
-![skt](https://hackmd.io/_uploads/ByOaRNZ9Wg.png)
+![alt text](skt.png)
 
 Semua 4 `submit()` dipanggil hampir bersamaan. Worker berjalan paralel di thread
 pool. `_lock` di-acquire singkat hanya saat update shared state, lalu dilepas
@@ -118,7 +117,7 @@ segera — meminimalkan waktu blokir antar worker.
 ---
 
 ### 3. Jalankan program selama 5 menit. Catat `event ID` dari setiap ringkasan yang dicetak. Berapa rata-rata waktu antar ringkasan? Apakah sesuai dengan `REPORT_EVERY × interval_publisher`?
-![image](https://hackmd.io/_uploads/HkKSkBZc-e.png)
+![alt text](c3.png)
 
 Dari hasil pengamatan, sistem secara keseluruhan berjalan cukup stabil. Salah satu hal yang bisa langsung dilihat adalah sistem mencetak ringkasan global yang secara konsisten setiap 10 event, yang menandakan bahwa parameter `REPORT_EVERY` memang dikonfigurasi pada nilai 10. Seharusnya publisher mengirim 5 pesan per detik, maka ringkasan seharusnya muncul setiap 2 detik. Namun dalam percobaan saya, interval antar ringkasan sedikit lebih lambat, berkisar antara 2,0 hingga 2,3 detik. Penyebabnya kemungkinan besar ada dua hal: pertama, adanya overhead dari protokol MQTT saat proses pengiriman pesan, dan kedua, pengaruh Global Interpreter Lock (GIL) milik Python yang membatasi eksekusi paralel sejati ketika beberapa worker berjalan bersamaan. Sebagai gambaran skala waktu, jika sistem dijalankan selama 5 menit atau 300 detik, maka secara teori akan ada sekitar 150 event yang masuk dan menghasilkan 15 ringkasan global. Dari sisi performa worker, ditemukan bahwa `worker_agregat_global` merupakan komponen yang paling lambat dengan rata-rata waktu eksekusi 0,0174 ms. Meskipun nilainya sangat kecil, kontribusinya terhadap total latensi sistem tetap ada dan perlu diperhatikan, terutama jika sistem dijalankan dalam skala yang lebih besar.
 
