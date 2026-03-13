@@ -8,6 +8,7 @@
 ### 1. Berapa lama waktu yang dibutuhkan sebelum batch pertama selesai diproses? Mengapa membutuhkan waktu tersebut?
 
 ![image](https://hackmd.io/_uploads/BJylDMb5We.png)
+![alt text](image.png)
 Batch pertama baru bisa diproses setelah **20 pesan terkumpul** di buffer
 (sesuai `BATCH_SIZE = 20`). Karena publisher mengirim 5 pesan/detik
 (satu per stasiun secara bergantian), buffer penuh setelah ±4 detik. Proses MapReduce seharusnya sangat cepat. Ini adalah ciri khas **batch processing** yaitu terdapat jeda tetap sebelum hasil tersedia, tidak seperti stream processing yang langsung reaktif.
