@@ -1,9 +1,3 @@
-"""
-solution_parallel.py
-Tugas C — Parallel Processing
-Praktikum Komputasi Terdistribusi
-"""
-
 import os
 import json
 import time

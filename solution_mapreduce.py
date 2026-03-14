@@ -1,9 +1,3 @@
-"""
-solution_mapreduce.py
-Tugas A — MapReduce
-Praktikum Komputasi Terdistribusi
-"""
-
 import os
 import json
 import time

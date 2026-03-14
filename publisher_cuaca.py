@@ -1,12 +1,3 @@
-"""
-publisher_cuaca.py
-Publisher simulasi 5 stasiun cuaca cerdas
-Praktikum Komputasi Terdistribusi
-
-Mengirim 5 pesan/detik ke MQTT broker (1 per stasiun, bergantian)
-Topik: stasiun/cuaca/<station_id>
-"""
-
 import os
 import json
 import time
