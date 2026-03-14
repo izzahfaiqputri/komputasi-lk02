@@ -6,13 +6,13 @@ import math
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
-# ─── Konfigurasi ─────────────────────────────────────────────────────────────
+# Konfigurasi
 BROKER_HOST    = os.environ.get("MQTT_BROKER", "localhost")
 BROKER_PORT    = int(os.environ.get("MQTT_PORT", 1883))
 PUBLISH_RATE   = 5        # total pesan per detik (semua stasiun)
 INTERVAL       = 1.0 / PUBLISH_RATE  # jeda antar pesan = 0.2 detik
 
-# ─── Definisi 5 Stasiun ───────────────────────────────────────────────────────
+# Definisi 5 Stasiun
 STATIONS = [
     {"station_id": "WS-001", "lokasi": "Gedung_A",  "lat": -7.2504, "lon": 112.7688},
     {"station_id": "WS-002", "lokasi": "Gedung_B",  "lat": -7.2512, "lon": 112.7695},
@@ -21,8 +21,7 @@ STATIONS = [
     {"station_id": "WS-005", "lokasi": "Rooftop",   "lat": -7.2508, "lon": 112.7710},
 ]
 
-# ─── Profil baseline per stasiun ─────────────────────────────────────────────
-# Tiap stasiun punya karakteristik berbeda supaya data lebih realistis
+# Profil baseline per stasiun
 STATION_PROFILE = {
     "WS-001": {"suhu_base": 31.0, "aqi_base": 85,  "hujan_prob": 0.05},
     "WS-002": {"suhu_base": 29.5, "aqi_base": 75,  "hujan_prob": 0.05},
@@ -33,7 +32,6 @@ STATION_PROFILE = {
 
 ARAH_ANGIN = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
-# ─── State simulasi per stasiun ───────────────────────────────────────────────
 # Menyimpan nilai terakhir untuk membuat perubahan bertahap (random walk)
 _state: dict = {
     sid: {
@@ -48,13 +46,12 @@ _state: dict = {
     for sid in STATION_PROFILE
 }
 
-# ─── Generator data sensor ────────────────────────────────────────────────────
+# Generator data sensor
 def generate_payload(station: dict) -> dict:
     sid     = station["station_id"]
     profile = STATION_PROFILE[sid]
     st      = _state[sid]
 
-    # Perubahan bertahap (random walk) agar data terlihat natural
     st["suhu"]    += random.uniform(-0.5, 0.5)
     st["lembab"]  += random.uniform(-1.0, 1.0)
     st["tekanan"] += random.uniform(-0.3, 0.3)
@@ -62,7 +59,6 @@ def generate_payload(station: dict) -> dict:
     st["aqi"]     += random.uniform(-3.0, 3.0)
     st["lux"]     += random.uniform(-2000, 2000)
 
-    # Sesekali inject kondisi ekstrem (peluang 3%)
     if random.random() < 0.03:
         st["suhu"]  = random.uniform(38.0, 41.0)
     if random.random() < 0.03:
@@ -70,16 +66,13 @@ def generate_payload(station: dict) -> dict:
     if random.random() < 0.03:
         st["angin"] = random.uniform(40, 60)
 
-    # Sesekali hujan
     hujan = 0.0
     if random.random() < profile["hujan_prob"]:
         hujan = random.uniform(5.0, 20.0)
 
-    # Arah angin berubah perlahan
     if random.random() < 0.1:
         st["arah_idx"] = (st["arah_idx"] + random.choice([-1, 0, 1])) % 8
 
-    # Clamp ke rentang normal
     st["suhu"]    = max(15.0,  min(42.0,  st["suhu"]))
     st["lembab"]  = max(30.0,  min(98.0,  st["lembab"]))
     st["tekanan"] = max(995.0, min(1025.0, st["tekanan"]))
@@ -104,7 +97,7 @@ def generate_payload(station: dict) -> dict:
     }
 
 
-# ─── MQTT Callbacks ──────────────────────────────────────────────────────────
+# MQTT Callbacks 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(f"[MQTT] Terhubung ke broker {BROKER_HOST}:{BROKER_PORT}")
@@ -116,10 +109,10 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_publish(client, userdata, mid):
-    pass  # silent — supaya output tidak berisik
+    pass  
 
 
-# ─── Main Loop ────────────────────────────────────────────────────────────────
+# Main Loop
 def main():
     client = mqtt.Client()
     client.on_connect = on_connect
@@ -143,7 +136,7 @@ def main():
             msg_count += 1
             station_idx += 1
 
-            # Log ringkas setiap 25 pesan (5 detik sekali)
+            # Log setiap 25 pesan 
             if msg_count % 25 == 0:
                 print(
                     f"[Publisher] #{msg_count:>6} pesan terkirim | "
@@ -151,7 +144,6 @@ def main():
                     f"suhu={payload['suhu_c']}°C  aqi={payload['aqi']}"
                 )
 
-            # Jaga interval 0.2 detik per pesan
             elapsed = time.perf_counter() - t_start
             sleep_time = INTERVAL - elapsed
             if sleep_time > 0:

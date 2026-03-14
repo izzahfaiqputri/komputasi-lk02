@@ -3,32 +3,29 @@ import json
 import paho.mqtt.client as mqtt
 from collections import defaultdict, deque
 
-# ─── Konfigurasi ─────────────────────────────────────────────────────────────
+# Konfigurasi 
 BROKER_HOST = os.environ.get("MQTT_BROKER", "localhost")
 BROKER_PORT = int(os.environ.get("MQTT_PORT", 1883))
 TOPIC       = "stasiun/cuaca/#"
 
-WINDOW_SIZE = 10   # tumbling window
-SLIDE_SIZE  = 5    # sliding window
+WINDOW_SIZE = 10   
+SLIDE_SIZE  = 5    
 
 ALERT_SUHU_MAX  = 38.0
 ALERT_AQI_MAX   = 150
 ALERT_ANGIN_MAX = 40.0
 ALERT_HUJAN_MIN = 5.0
 
-# ─── State ───────────────────────────────────────────────────────────────────
+# State
 _event_counter: int = 0
 
-# Sliding window: simpan N event terakhir per station
 _sliding: dict  = defaultdict(lambda: deque(maxlen=SLIDE_SIZE))
 
-# Tumbling window: akumulasi event per station sampai WINDOW_SIZE
 _tumbling: dict = defaultdict(list)
 
-# Statistik alert per station
 _alert_count: dict = defaultdict(int)
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# Helpers
 def aqi_kategori(aqi: float) -> str:
     if aqi <= 50:   return "Baik"
     if aqi <= 100:  return "Sedang"
@@ -47,7 +44,7 @@ def check_alerts(p: dict) -> list[str]:
     return alerts
 
 
-# ─── Tumbling Window flush ────────────────────────────────────────────────────
+# Tumbling Window flush 
 def flush_tumbling(station_id: str, events: list[dict]):
     n           = len(events)
     suhu_list   = [e["suhu_c"]          for e in events]
@@ -85,7 +82,7 @@ def print_tumbling_ranking():
         print(f"  {i}. {sid} {lok:<12}: AQI avg={avg:.0f}{marker}")
 
 
-# ─── Per-event Processing ────────────────────────────────────────────────────
+# Pre-event Processing 
 def process_event(payload: dict):
     global _event_counter
     _event_counter += 1
@@ -97,20 +94,20 @@ def process_event(payload: dict):
     angin  = payload["kecepatan_angin"]
     hujan  = payload["curah_hujan_mm"]
 
-    # ── Per-event log ──────────────────────────────────────────────────
+    # Pre-event log 
     print(
         f"[Stream #{_event_counter:>4}] {sid} {lokasi:<12} | "
         f"suhu={suhu:.1f}°C  aqi={aqi:>3}  angin={angin:.1f}km/h  hujan={hujan:.1f}mm"
     )
 
-    # ── Alert ──────────────────────────────────────────────────────────
+    # Alert
     alerts = check_alerts(payload)
     if alerts:
         _alert_count[sid] += 1
         alert_str = " | ".join(alerts)
         print(f"               *** ALERT {sid}: {alert_str} ***")
 
-    # ── Sliding window ─────────────────────────────────────────────────
+    #  Sliding window
     _sliding[sid].append(payload)
     sw = _sliding[sid]
     n  = len(sw)
@@ -133,7 +130,7 @@ def process_event(payload: dict):
                 f"{last3[0]} → {last3[1]} → {last3[2]} (3 event berurutan)"
             )
 
-    # ── Tumbling window ────────────────────────────────────────────────
+    #  Tumbling window
     _tumbling[sid].append(payload)
     if len(_tumbling[sid]) >= WINDOW_SIZE:
         flush_tumbling(sid, _tumbling[sid])
@@ -141,7 +138,7 @@ def process_event(payload: dict):
         _tumbling[sid] = []   # reset
 
 
-# ─── MQTT Callbacks ──────────────────────────────────────────────────────────
+#  MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(f"[MQTT] Terhubung ke broker {BROKER_HOST}:{BROKER_PORT}")
@@ -163,7 +160,7 @@ def on_message(client, userdata, msg):
         print(f"[ERROR] KeyError — field tidak ditemukan: {e}")
 
 
-# ─── Entry Point ──────────────────────────────────────────────────────────────
+#  Entry Point
 def main():
     client = mqtt.Client()
     client.on_connect = on_connect

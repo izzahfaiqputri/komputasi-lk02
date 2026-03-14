@@ -6,14 +6,14 @@ import paho.mqtt.client as mqtt
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# ─── Konfigurasi ─────────────────────────────────────────────────────────────
+# Konfigurasi
 BROKER_HOST  = os.environ.get("MQTT_BROKER", "localhost")
 BROKER_PORT  = int(os.environ.get("MQTT_PORT", 1883))
 TOPIC        = "stasiun/cuaca/#"
 NUM_WORKERS  = 4
 REPORT_EVERY = 10
 
-# ─── Shared State ─────────────────────────────────────────────────────────────
+# Shared State
 _lock = threading.Lock()
 
 _suhu_stats: dict = defaultdict(lambda: {
@@ -37,12 +37,12 @@ _global: dict = {
     "suhu_terpanas_avg":   -99.0,
 }
 
-_aqi_terakhir: dict = {}   # {station_id: aqi_value}  untuk agregat global
+_aqi_terakhir: dict = {} 
 
 _event_counter: int = 0
-_worker_times: dict = defaultdict(list)  # {worker_name: [elapsed_ms, ...]}
+_worker_times: dict = defaultdict(list) 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# Helpers
 def aqi_kategori(aqi: float) -> str:
     if aqi <= 50:   return "Baik"
     if aqi <= 100:  return "Sedang"
@@ -51,7 +51,7 @@ def aqi_kategori(aqi: float) -> str:
     return "Sangat Tidak Sehat"
 
 
-# ─── Workers ─────────────────────────────────────────────────────────────────
+#  Workers 
 def worker_statistik_suhu(payload: dict) -> str:
     t0  = time.perf_counter()
     sid = payload["station_id"]
@@ -142,8 +142,6 @@ def worker_agregat_global(payload: dict) -> str:
 
     return f"global updated"
 
-
-# Daftar worker yang akan di-dispatch
 WORKERS = [
     worker_statistik_suhu,
     worker_kualitas_udara,
@@ -151,11 +149,10 @@ WORKERS = [
     worker_agregat_global,
 ]
 
-# ─── Thread Pool ──────────────────────────────────────────────────────────────
+# Thread Pool 
 _executor = ThreadPoolExecutor(max_workers=NUM_WORKERS)
 
-
-# ─── Ringkasan Global ─────────────────────────────────────────────────────────
+# Ringkasan Umum 
 def print_ringkasan(n_event: int):
     with _lock:
         suhu_snap    = dict(_suhu_stats)
@@ -201,14 +198,13 @@ def print_ringkasan(n_event: int):
             avg_t = sum(times) / len(times)
             max_t = max(times)
             print(f"  │    {wname:<32}: avg={avg_t:.4f}ms  max={max_t:.4f}ms")
-    # Identifikasi worker paling lambat
     if wtimes_snap:
         slowest = max(wtimes_snap, key=lambda k: sum(wtimes_snap[k]) / max(len(wtimes_snap[k]),1))
         print(f"  │  ⚠ Worker PALING LAMBAT: {slowest}")
     print(f"  └" + "─" * 60)
 
 
-# ─── MQTT Callbacks ──────────────────────────────────────────────────────────
+# MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(f"[MQTT] Terhubung ke broker {BROKER_HOST}:{BROKER_PORT}")
@@ -228,7 +224,6 @@ def on_message(client, userdata, msg):
             _event_counter += 1
             current_id = _event_counter
 
-        # ── Dispatch ke semua worker secara paralel ────────────────────
         futures = {
             _executor.submit(fn, payload): fn.__name__
             for fn in WORKERS
@@ -245,7 +240,6 @@ def on_message(client, userdata, msg):
             + "  ".join(f"{k}={v}" for k, v in results.items())
         )
 
-        # ── Ringkasan periodik ─────────────────────────────────────────
         if current_id % REPORT_EVERY == 0:
             print_ringkasan(current_id)
 
@@ -255,7 +249,7 @@ def on_message(client, userdata, msg):
         print(f"[ERROR] KeyError — field tidak ditemukan: {e}")
 
 
-# ─── Entry Point ──────────────────────────────────────────────────────────────
+# Entry Point
 def main():
     client = mqtt.Client()
     client.on_connect = on_connect

@@ -3,14 +3,14 @@ import json
 import time
 import paho.mqtt.client as mqtt
 
-# ─── Konfigurasi ────────────────────────────────────────────────────────────
+# Konfigurasi
 BROKER_HOST = os.environ.get("MQTT_BROKER", "localhost")
 BROKER_PORT = int(os.environ.get("MQTT_PORT", 1883))
 TOPIC       = "stasiun/cuaca/#"
 BATCH_SIZE  = 20
 # BATCH_SIZE  = 100 #Tugas A1 
 
-# ─── Kategori AQI ───────────────────────────────────────────────────────────
+# Kategori AQI
 def aqi_kategori(aqi: float) -> str:
     if aqi <= 50:   return "Baik"
     if aqi <= 100:  return "Sedang"
@@ -18,11 +18,11 @@ def aqi_kategori(aqi: float) -> str:
     if aqi <= 200:  return "Tidak Sehat"
     return "Sangat Tidak Sehat"
 
-# ─── Buffer ──────────────────────────────────────────────────────────────────
+# Buffer
 _buffer: list[dict] = []
 _batch_count: int   = 0
 
-# ─── MapReduce Pipeline ──────────────────────────────────────────────────────
+# MapReduce Pipeline
 def phase_map(records: list[dict]) -> list[tuple]:
     """Map: setiap record → (station_id, value_dict)"""
     pairs = []
@@ -85,7 +85,7 @@ def run_mapreduce(records: list[dict], batch_num: int):
 
     elapsed = (time.perf_counter() - t0) * 1000  # ms
 
-    # ─── Output ──────────────────────────────────────────────────────────
+    # Output
     stasiun_list = ", ".join(sorted(grouped.keys()))
     print()
     print("═" * 60)
@@ -119,7 +119,7 @@ def run_mapreduce(records: list[dict], batch_num: int):
     print("═" * 60)
 
 
-# ─── MQTT Callbacks ──────────────────────────────────────────────────────────
+# MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(f"[MQTT] Terhubung ke broker {BROKER_HOST}:{BROKER_PORT}")
@@ -148,7 +148,7 @@ def on_message(client, userdata, msg):
         print(f"[ERROR] KeyError — field tidak ditemukan: {e}")
 
 
-# ─── Entry Point ─────────────────────────────────────────────────────────────
+# Entry Point
 def main():
     client = mqtt.Client()
     client.on_connect = on_connect
